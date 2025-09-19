@@ -1,0 +1,13 @@
+
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+inst/doc
+.vscode
+.DS_Store
+.git
+.gitignore
+.github
+tests
+

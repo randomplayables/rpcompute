@@ -1,3 +1,5 @@
 ^rpcompute\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^Dockerfile$
+^\.dockerignore$

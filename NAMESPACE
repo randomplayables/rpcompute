@@ -3,6 +3,7 @@
 export("%||%")
 export(builtin_registry)
 export(capture_provenance)
+export(compose_registry)
 export(dispatch)
 export(serve)
 export(validate_payload)

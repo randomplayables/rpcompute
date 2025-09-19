@@ -18,21 +18,25 @@
 #' }
 #'
 #' @export
-serve <- function(host = "0.0.0.0", port = 8080, registry = builtin_registry) {
+serve <- function(host = "0.0.0.0", port = 8080, registry = compose_registry()) {
+
   h <- function(req, res) {
-    body <- req$body
-    validate_payload(body)
     t0 <- proc.time()[["elapsed"]]
-    out <- dispatch(
-      mode     = body$mode %||% "builtin",
-      fn       = body$fn,
-      args     = body$args %||% list(),
-      seed     = body$seed,
-      registry = registry
-    )
-    ms <- as.integer((proc.time()[["elapsed"]] - t0) * 1000)
-    list(ok = TRUE, result = out,
-         provenance = capture_provenance(list(latencyMs = ms)))
+    tryCatch({
+      body <- req$body
+      validate_payload(body)
+      out <- dispatch(body$mode %||% "builtin",
+                      body$fn,
+                      body$args %||% list(),
+                      body$seed,
+                      registry)
+      ms <- as.integer((proc.time()[["elapsed"]] - t0) * 1000)
+      list(ok = TRUE, result = out,
+           provenance = capture_provenance(list(latencyMs = ms)))
+    }, error = function(e) {
+      res$status <- 400
+      list(ok = FALSE, error = unname(conditionMessage(e)))
+    })
   }
 
   pr <- plumber::pr()

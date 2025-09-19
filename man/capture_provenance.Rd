@@ -13,14 +13,14 @@ capture_provenance(extra = list())
 A named list with elements:
 \describe{
 \item{r}{R version as character.}
-\item{packages}{Named list of installed package versions.}
-\item{...}{Any fields passed via \code{extra}.}
+\item{packages}{Named list of versions for loaded packages.}
+\item{...}{Any fields passed via \code{extra} (e.g., \code{latencyMs}).}
 }
 }
 \description{
-Returns a small, extensible list describing the runtime environment.
-Used to attach reproducibility metadata (R version, package versions, etc.)
-to each compute result.
+Returns a compact, extensible list describing the runtime environment.
+This variant records the R version and \strong{loaded} package versions
+(rather than all installed packages) to keep response payloads small.
 }
 \examples{
 p <- capture_provenance()

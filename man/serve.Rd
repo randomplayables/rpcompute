@@ -4,7 +4,7 @@
 \alias{serve}
 \title{Start the rpcompute plumber API}
 \usage{
-serve(host = "0.0.0.0", port = 8080, registry = builtin_registry)
+serve(host = "0.0.0.0", port = 8080, registry = compose_registry())
 }
 \arguments{
 \item{host}{Host interface to bind. Default \code{"0.0.0.0"}.}
