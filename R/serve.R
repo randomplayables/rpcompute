@@ -19,8 +19,7 @@
 #'
 #' @export
 serve <- function(host = "0.0.0.0", port = 8080, registry = builtin_registry) {
-  pr <- plumber::plumber$new()
-  pr$handle("POST", "/compute", function(req, res) {
+  h <- function(req, res) {
     body <- req$body
     validate_payload(body)
     t0 <- proc.time()[["elapsed"]]
@@ -34,7 +33,11 @@ serve <- function(host = "0.0.0.0", port = 8080, registry = builtin_registry) {
     ms <- as.integer((proc.time()[["elapsed"]] - t0) * 1000)
     list(ok = TRUE, result = out,
          provenance = capture_provenance(list(latencyMs = ms)))
-  })
-  pr$run(host = host, port = as.integer(port))
+  }
+
+  pr <- plumber::pr()
+  pr <- plumber::pr_post(pr, "/compute", h)
+
+  plumber::pr_run(pr, host = host, port = as.integer(port))
   invisible(pr)
 }
