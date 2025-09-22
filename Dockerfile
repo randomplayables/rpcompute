@@ -11,8 +11,7 @@ RUN R -q -e "install.packages(c('plumber','jsonlite'), repos='https://cloud.r-pr
 
 WORKDIR /src
 COPY . /src
-RUN R -q -e "install.packages('devtools', repos='https://cloud.r-project.org'); devtools::install_local('/src', upgrade = 'never')"
+RUN R CMD INSTALL /src
 
 EXPOSE 8080
 CMD ["R","-q","-e","rpcompute::serve(host='0.0.0.0', port=8080)"]
-
