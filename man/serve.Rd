@@ -2,30 +2,72 @@
 % Please edit documentation in R/serve.R
 \name{serve}
 \alias{serve}
-\title{Start the rpcompute plumber API}
+\title{Start the rpcompute HTTP API}
 \usage{
-serve(host = "0.0.0.0", port = 8080, registry = compose_registry())
+serve(
+  host = "0.0.0.0",
+  port = 8080,
+  registry = compose_registry(),
+  require_secret = FALSE,
+  secret_env = "RPCOMPUTE_SECRET"
+)
 }
 \arguments{
 \item{host}{Host interface to bind. Default \code{"0.0.0.0"}.}
 
 \item{port}{Integer port to listen on. Default \code{8080}.}
 
-\item{registry}{A registry object (nested list) mapping \code{mode}/\code{fn} to
-handler functions. Defaults to \code{builtin_registry}.}
+\item{registry}{A registry (nested list) mapping \code{mode}/\code{fn} to
+handler functions. Defaults to \code{compose_registry()}.}
+
+\item{require_secret}{Logical. If \code{TRUE}, require the request header
+\code{X-RP-Secret} to match the configured secret; otherwise no header is
+required. Default \code{FALSE}.}
+
+\item{secret_env}{Character name of the environment variable that holds the
+shared secret used when \code{require_secret = TRUE}. Default
+\code{"RPCOMPUTE_SECRET"}.}
 }
 \value{
-(Invisibly) the running plumber router object.
+(Invisibly) the running \pkg{plumber} router object.
 }
 \description{
-Launches a small HTTP API that exposes a single \code{POST /compute} endpoint.
-The endpoint validates the payload, dispatches to an allow-listed handler,
-and returns the handler result plus provenance metadata.
+Launch a small HTTP API that exposes:
+\itemize{
+\item \code{GET /healthz} – liveness probe, returns \code{{"status":"ok"}}.
+\item \code{POST /compute} – validates the payload, dispatches to an
+allow-listed handler, and returns the handler result plus provenance.
 }
+}
+\details{
+Requests that fail validation/dispatch return uniform JSON errors with
+HTTP 4xx and shape \code{{"ok": false, "error": "<message>"}}.
+
+Optionally, a very light shared-secret check can be enabled. When enabled,
+clients must send the header \code{X-RP-Secret: <value>} and the server will
+compare it to the value stored in the environment variable named by
+\code{secret_env}.
+}
+\section{Security}{
+
+The shared-secret check is a minimal protection suitable for server-to-server
+calls behind a trusted gateway. For public internet exposure, consider
+terminating auth at your gateway (e.g., Cloud Run IAM, OAuth/JWT) and keep
+this service private.
+}
+
 \examples{
 \dontrun{
   # Start a local server on port 8080
   serve(port = 8080)
+
+  # Start with a shared secret (read from env var RPCOMPUTE_SECRET)
+  Sys.setenv(RPCOMPUTE_SECRET = "abc123")
+  serve(port = 8080, require_secret = TRUE)
+
+  # If you keep secrets under a different env var name:
+  Sys.setenv(MY_SECRET = "topsecret")
+  serve(port = 8080, require_secret = TRUE, secret_env = "MY_SECRET")
 }
 
 }
