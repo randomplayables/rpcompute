@@ -21,12 +21,28 @@
 #'   handler functions. Defaults to \code{compose_registry()}.
 #' @param require_secret Logical. If \code{TRUE}, require the request header
 #'   \code{X-RP-Secret} to match the configured secret; otherwise no header is
-#'   required. Default \code{FALSE}.
+#'   required. You can also set the environment variable
+#'   \code{RPCOMPUTE_REQUIRE_SECRET=true} to enable this without changing code.
+#'   Default \code{FALSE}.
 #' @param secret_env Character name of the environment variable that holds the
 #'   shared secret used when \code{require_secret = TRUE}. Default
 #'   \code{"RPCOMPUTE_SECRET"}.
 #'
 #' @return (Invisibly) the running \pkg{plumber} router object.
+#'
+#' @section CORS:
+#' The service responds to browser preflight requests and sets CORS headers.
+#' The allowed origin can be controlled by environment variable
+#' \code{RPCOMPUTE_ALLOW_ORIGIN} (e.g., \code{"https://your-frontend.example"}).
+#' Default is \code{"*"}.
+#' The following headers are emitted:
+#' \itemize{
+#'   \item \code{Access-Control-Allow-Origin}: matched origin or \code{"*"}.
+#'   \item \code{Access-Control-Allow-Methods}: \code{POST, GET, OPTIONS}.
+#'   \item \code{Access-Control-Allow-Headers}: \code{Content-Type, X-RP-Secret}.
+#'   \item \code{Access-Control-Max-Age}: \code{600}.
+#'   \item \code{Vary}: \code{Origin}.
+#' }
 #'
 #' @section Security:
 #' The shared-secret check is a minimal protection suitable for server-to-server
@@ -49,8 +65,13 @@
 #' }
 #'
 #' @export
-serve <- function(host = "0.0.0.0", port = 8080, registry = compose_registry(),
-                  require_secret = FALSE, secret_env = "RPCOMPUTE_SECRET") {
+serve <- function(
+    host = "0.0.0.0",
+    port = 8080,
+    registry = compose_registry(),
+    require_secret = identical(tolower(Sys.getenv("RPCOMPUTE_REQUIRE_SECRET", "false")), "true"),
+    secret_env = "RPCOMPUTE_SECRET"
+) {
 
   h <- function(req, res) {
     t0 <- proc.time()[["elapsed"]]
@@ -72,6 +93,32 @@ serve <- function(host = "0.0.0.0", port = 8080, registry = compose_registry(),
   }
 
   pr <- plumber::pr()
+
+  # --- CORS filter (handles preflight and sets headers) ---
+  pr <- plumber::pr_filter(pr, "cors", function(req, res) {
+    allow_origin <- Sys.getenv("RPCOMPUTE_ALLOW_ORIGIN", "*")
+    origin <- req$HTTP_ORIGIN %||% ""
+
+    if (identical(allow_origin, "*")) {
+      res$setHeader("Access-Control-Allow-Origin", "*")
+    } else if (nzchar(origin) && identical(origin, allow_origin)) {
+      res$setHeader("Access-Control-Allow-Origin", origin)
+    } else {
+      # Not an allowed origin; browsers will block the response
+      res$setHeader("Access-Control-Allow-Origin", "null")
+    }
+
+    res$setHeader("Vary", "Origin")
+    res$setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+    res$setHeader("Access-Control-Allow-Headers", "Content-Type, X-RP-Secret")
+    res$setHeader("Access-Control-Max-Age", "600")
+
+    if (identical(req$REQUEST_METHOD, "OPTIONS")) {
+      return("")  # 200 OK with headers
+    }
+
+    plumber::forward()
+  })
 
   # Optional very-light auth via shared secret header
   if (isTRUE(require_secret)) {

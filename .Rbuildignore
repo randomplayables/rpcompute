@@ -4,3 +4,7 @@
 ^Dockerfile$
 ^\.dockerignore$
 ^.github$
+^\.Renviron$
+^\.Renviron\.local$
+^\.env$
+^\.env\.*$

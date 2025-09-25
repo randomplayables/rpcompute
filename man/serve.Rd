@@ -8,7 +8,8 @@ serve(
   host = "0.0.0.0",
   port = 8080,
   registry = compose_registry(),
-  require_secret = FALSE,
+  require_secret = identical(tolower(Sys.getenv("RPCOMPUTE_REQUIRE_SECRET", "false")),
+    "true"),
   secret_env = "RPCOMPUTE_SECRET"
 )
 }
@@ -22,7 +23,9 @@ handler functions. Defaults to \code{compose_registry()}.}
 
 \item{require_secret}{Logical. If \code{TRUE}, require the request header
 \code{X-RP-Secret} to match the configured secret; otherwise no header is
-required. Default \code{FALSE}.}
+required. You can also set the environment variable
+\code{RPCOMPUTE_REQUIRE_SECRET=true} to enable this without changing code.
+Default \code{FALSE}.}
 
 \item{secret_env}{Character name of the environment variable that holds the
 shared secret used when \code{require_secret = TRUE}. Default
@@ -48,6 +51,22 @@ clients must send the header \code{X-RP-Secret: <value>} and the server will
 compare it to the value stored in the environment variable named by
 \code{secret_env}.
 }
+\section{CORS}{
+
+The service responds to browser preflight requests and sets CORS headers.
+The allowed origin can be controlled by environment variable
+\code{RPCOMPUTE_ALLOW_ORIGIN} (e.g., \code{"https://your-frontend.example"}).
+Default is \code{"*"}.
+The following headers are emitted:
+\itemize{
+\item \code{Access-Control-Allow-Origin}: matched origin or \code{"*"}.
+\item \code{Access-Control-Allow-Methods}: \code{POST, GET, OPTIONS}.
+\item \code{Access-Control-Allow-Headers}: \code{Content-Type, X-RP-Secret}.
+\item \code{Access-Control-Max-Age}: \code{600}.
+\item \code{Vary}: \code{Origin}.
+}
+}
+
 \section{Security}{
 
 The shared-secret check is a minimal protection suitable for server-to-server
