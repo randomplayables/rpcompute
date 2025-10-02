@@ -1,6 +1,9 @@
 
 FROM rocker/r-ver:4.4.1
 
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \

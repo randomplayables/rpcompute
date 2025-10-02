@@ -43,6 +43,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           tags: |
             ghcr.io/${{ steps.coords.outputs.repo_lc }}:latest
             ghcr.io/${{ steps.coords.outputs.repo_lc }}:${{ github.ref_name }}

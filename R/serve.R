@@ -94,6 +94,45 @@ serve <- function(
 
   pr <- plumber::pr()
 
+  # --- request logging (one JSON line per request) --------------------------
+  pr <- plumber::pr_filter(pr, "log", function(req, res) {
+    started <- proc.time()[["elapsed"]]
+    # Cloud Run / Google load balancers often pass trace or request IDs:
+    rid <- req$HTTP_X_CLOUD_TRACE_CONTEXT %||%
+      req$HTTP_X_REQUEST_ID %||%
+      sprintf("%08x", as.integer(stats::runif(1, 0, 2^31 - 1)))
+
+    # Run the downstream handler
+    plumber::forward()
+
+    # After handler finishes, compute latency and emit a compact JSON log
+    on.exit({
+      ms <- as.integer((proc.time()[["elapsed"]] - started) * 1000)
+      status <- res$status %||% 200L
+      # Keep the log small but useful; stdout goes to Cloud Logging.
+      log <- list(
+        ts      = as.integer(Sys.time()),
+        method  = req$REQUEST_METHOD,
+        path    = req$PATH_INFO,
+        status  = status,
+        ms      = ms,
+        rid     = rid,
+        ua      = req$HTTP_USER_AGENT %||% NULL,
+        ip      = req$REMOTE_ADDR %||% NULL
+      )
+      cat(jsonlite::toJSON(log, auto_unbox = TRUE), "\n")
+    }, add = TRUE)
+  })
+
+  # --- /version --------------------------------------------------------------
+  pr <- plumber::pr_get(pr, "/version", function() {
+    list(
+      package = "rpcompute",
+      version = as.character(utils::packageVersion("rpcompute")),
+      git_sha = Sys.getenv("GIT_SHA", "")   # populated at build time (see below)
+    )
+  })
+
   # --- CORS filter (handles preflight and sets headers) ---
   pr <- plumber::pr_filter(pr, "cors", function(req, res) {
     allow_origin <- Sys.getenv("RPCOMPUTE_ALLOW_ORIGIN", "*")
