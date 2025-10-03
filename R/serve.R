@@ -135,16 +135,38 @@ serve <- function(
 
   # --- CORS filter (handles preflight and sets headers) ---
   pr <- plumber::pr_filter(pr, "cors", function(req, res) {
-    allow_origin <- Sys.getenv("RPCOMPUTE_ALLOW_ORIGIN", "*")
+    raw <- Sys.getenv("RPCOMPUTE_ALLOW_ORIGIN", "*")
     origin <- req$HTTP_ORIGIN %||% ""
 
-    if (identical(allow_origin, "*")) {
+    allow <- function(origin, raw) {
+      raw <- trimws(raw)
+      if (raw == "*") return("*")
+
+      # split comma-separated list
+      parts <- strsplit(raw, ",", fixed = TRUE)[[1]]
+      parts <- trimws(parts)
+
+      # exact match
+      if (nzchar(origin) && origin %in% parts) return(origin)
+
+      # simple wildcard support: patterns like *.randomplayables.com
+      for (p in parts) {
+        if (startsWith(p, "*.")) {
+          suffix <- substring(p, 2L) # like ".randomplayables.com"
+          if (nzchar(origin) && endsWith(origin, suffix)) return(origin)
+        }
+      }
+      return(NULL)
+    }
+
+    chosen <- allow(origin, raw)
+
+    if (identical(raw, "*")) {
       res$setHeader("Access-Control-Allow-Origin", "*")
-    } else if (nzchar(origin) && identical(origin, allow_origin)) {
-      res$setHeader("Access-Control-Allow-Origin", origin)
+    } else if (!is.null(chosen)) {
+      res$setHeader("Access-Control-Allow-Origin", chosen)
     } else {
-      # Not an allowed origin; browsers will block the response
-      res$setHeader("Access-Control-Allow-Origin", "null")
+      res$setHeader("Access-Control-Allow-Origin", "null") # not allowed
     }
 
     res$setHeader("Vary", "Origin")
@@ -155,7 +177,6 @@ serve <- function(
     if (identical(req$REQUEST_METHOD, "OPTIONS")) {
       return("")  # 200 OK with headers
     }
-
     plumber::forward()
   })
 
