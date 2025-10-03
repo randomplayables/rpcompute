@@ -8,3 +8,4 @@
 .Renviron.local
 .env
 .env.*
+env.yaml
